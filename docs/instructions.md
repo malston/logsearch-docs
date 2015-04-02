@@ -11,8 +11,8 @@ you can upload the latest logsearch release...
     $ cd ~/workspace/boshreleases/
     $ git clone https://github.com/logsearch/logsearch-boshrelease.git
     $ cd logsearch-boshrelease/
-    $ git checkout v19
-    $ bosh upload release releases/logsearch-19.yml
+    $ git checkout v18
+    $ bosh upload release releases/logsearch-18.yml
 
 Next you'll need to create your own deployment manifest. Right now the easiest
 way to do that is by using one of the [`examples`](./examples) as a starting
