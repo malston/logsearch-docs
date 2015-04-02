@@ -47,7 +47,11 @@ Once you’ve made the change, save the manifest file and then re-deploy Cloud F
 
 ### Adding to an existing Cloud Foundry + Logsearch deployments
 
-This has been tested on cf-release v205 and logsearch-boshrelease v19.
+Logsearch for Cloud Foundry is an add-on that customizes Logsearch to work with Cloud Foundry data. 
+
+To get this add-on you can either checkout the github repo and follow the [README instructions](https://github.com/logsearch/logsearch-for-cloudfoundry/blob/master/logsearch-for-cloudfoundry-boshrelease/README.md) to create a release.
+
+Or, download the one from s3 which has been tested on cf-release v205 and logsearch-boshrelease v19 as follows.
 
 0.  Deploy the `ingestor_cloudfoundry` job to your existing logsearch deployment.
 
