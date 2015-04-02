@@ -22,8 +22,8 @@ bosh upload release https://logsearch-for-cloudfoundry-boshrelease.s3.amazonaws.
 
 Make 3 deployments using the manifests below:
 
-(./cf-warden.yml)
+[cf-warden.yml](./cf-warden.yml)
 
-(./logsearch-for-cloudfoundry-warden.yml)
+[logsearch-for-cloudfoundry-warden.yml](./logsearch-for-cloudfoundry-warden.yml)
 
-(./vagrant-logsearch.yml)
+[vagrant-logsearch.yml](./vagrant-logsearch.yml)
