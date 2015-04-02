@@ -11,8 +11,8 @@ you can upload the latest logsearch release...
     $ cd ~/workspace/boshreleases/
     $ git clone https://github.com/logsearch/logsearch-boshrelease.git
     $ cd logsearch-boshrelease/
-    $ git checkout v18
-    $ bosh upload release releases/logsearch-18.yml
+    $ git checkout v19
+    $ bosh upload release releases/logsearch-19.yml
 
 Next you'll need to create your own deployment manifest. Right now the easiest
 way to do that is by using one of the [`examples`](./examples) as a starting
@@ -45,8 +45,50 @@ Once you’ve made the change, save the manifest file and then re-deploy Cloud F
     $ bosh deployment /tmp/cf-warden.yml
     $ bosh -n deploy
 
-## Install Cloud Foundry Filters
+### Adding to an existing Cloud Foundry + Logsearch deployments
+
+This has been tested on cf-release v205 and logsearch-boshrelease v19.
+
+0.  Deploy the `ingestor_cloudfoundry` job to your existing logsearch deployment.
+
+  * `bosh upload release https://logsearch-for-cloudfoundry-boshrelease.s3.amazonaws.com/boshrelease-logsearch-for-cloudfoundry-0%2Bdev.3.tgz`
+  * Add and configure the `ingestor_cloudfoundry` job to your logsearch deploy manifest:
+           releases:
+  	          - name: logsearch-for-cloudfoundry
+                version: latest    
+  
+           jobs:
+             - name: ingestor_cloudfoundry
+               release: logsearch-for-cloudfoundry
+               templates: 
+               - name: ingestor_cloudfoundry-firehose
+               instances: 1
+               resource_pool: small_z1
+               networks: z1
+               persistent_disk: 0
+  
+           properties:
+               ingestor_cloudfoundry-firehose:
+                 debug: true
+                 uua-endpoint: "https://uaa.10.244.0.34.xip.io/oauth/authorize"
+                 doppler-endpoint: "wss://doppler.10.244.0.34.xip.io"
+                 skip-ssl-validation: true
+                 firehose-user: admin
+                 firehose-password: admin
+                 syslog-server: "10.244.10.6:514"
+   
+   * Include `logsearch-for-cloudfoundry/logstash-filters-default.conf` log_parsing rules
+           properties:
+             logstash_parser:
+           <% filtersconf = File.join(File.dirname(File.expand_path(__FILE__)), 'path/to/logsearch-for-  cloudfoundry/logstash-filters-default.conf') %>
+                filters: |
+                        <%= File.read(filtersconf).gsub(/^/, '            ').strip %>
+
+   * `bosh deploy`
+   * All app logs from your CF deployment should now be forwarded into your logsearch cluster.  Find them by searching for `@type:cloudfoundry_doppler`.  Make useful dashboards like the below:
+   ![screen shot 2015-03-30 at 12 48 38](https://cloud.githubusercontent.com/assets/227505/6895741/236ac118-d6db-11e4-802d-19f548d323f5.png)
 
 
 ## References
 - [How to Integrate Elasticsearch, Logstash and Kibana (ELK) with Cloud Foundry](http://cloudcredo.com/how-to-integrate-elasticsearch-logstash-and-kibana-elk-with-cloud-foundry/)
+- [Logsearch for Cloud Foundry](https://github.com/logsearch/logsearch-for-cloudfoundry)
