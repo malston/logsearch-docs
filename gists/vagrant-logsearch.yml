@@ -1,0 +1,591 @@
+---
+name: vagrant-logsearch
+director_uuid: c6f166bd-ddac-4f7d-9c57-d11c6ad5133b
+releases:
+- name: logsearch
+  version: 18+dev.63
+compilation:
+  workers: 3
+  network: warden
+  reuse_compilation_vms: true
+  cloud_properties: {}
+update:
+  serial: true
+  canaries: 1
+  canary_watch_time: 30000
+  update_watch_time: 30000
+  max_in_flight: 2
+  max_errors: 1
+resource_pools:
+- name: warden
+  network: warden
+  size: 7
+  stemcell:
+    name: bosh-warden-boshlite-ubuntu-trusty-go_agent
+    version: 2776
+  cloud_properties: {}
+jobs:
+- name: api
+  release: logsearch
+  templates:
+  - name: elasticsearch
+  - name: api
+  - name: kibana
+  update:
+    serial: true
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+    static_ips:
+    - 10.244.10.2
+  properties:
+    elasticsearch:
+      node:
+        allow_data: false
+    logstash_forwarder:
+      job_files:
+      - path: "/var/vcap/sys/log/elasticsearch/requests.log"
+        type: elasticsearch_request
+      - path: "/var/vcap/sys/log/api/nginx.access.log"
+        type: nginx_access
+      - path: "/var/vcap/sys/log/api/nginx.error.log"
+        type: nginx_error
+- name: queue
+  release: logsearch
+  templates:
+  - name: queue
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+    static_ips:
+    - 10.244.10.10
+- name: ingestor
+  release: logsearch
+  templates:
+  - name: ingestor_syslog
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+    static_ips:
+    - 10.244.10.6
+- name: log_parser
+  release: logsearch
+  templates:
+  - name: log_parser
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+- name: elasticsearch_az1
+  release: logsearch
+  templates:
+  - name: elasticsearch
+  update:
+    serial: true
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+  persistent_disk: 1024
+  properties:
+    elasticsearch:
+      node:
+        allow_master: false
+- name: elasticsearch_az2
+  release: logsearch
+  templates:
+  - name: elasticsearch
+  update:
+    serial: true
+  instances: 1
+  resource_pool: warden
+  networks:
+  - name: warden
+  persistent_disk: 1024
+  properties:
+    elasticsearch:
+      node:
+        allow_master: false
+properties:
+  api:
+    port: 80
+    kibana:
+      port: 80
+      host_header: kibana4.192.168.50.4.xip.io
+      host: 127.0.0.1:5601
+  kibana:
+    elasticsearch: 127.0.0.1:9200
+    port: 5601
+  elasticsearch:
+    host: 10.244.10.2
+    cluster_name: vagrant-logsearch
+    drain: true
+    exec:
+      environment:
+        ES_HEAP_SIZE: 256M
+  redis:
+    host: 10.244.10.10
+  logstash_ingestor:
+    debug: true
+    syslog:
+      port: 514
+  logstash_parser:
+    debug: true
+    filters: "# Parse Cloud Foundry logs from loggregator (syslog)\n# see https://github.com/cloudfoundry/loggregator/blob/master/src/loggregator/sinks/syslogwriter/syslog_writer.go#L156\n\nif
+      [@type] in [\"syslog\", \"relp\"] and [syslog_program] == \"doppler\" {\n  #
+      Parse Cloud Foundry logs from doppler (via https://github.com/SpringerPE/firehose-to-syslog)\n
+      \ \n  json {\n      source => 'syslog_message'\n      add_tag => [ 'cloudfoundry_doppler'
+      ] #This is only added if json parsing is successful\n  }\n  \n  if \"_jsonparsefailure\"
+      in [tags] {\n      \n      # Amend the failure tag to match our fail/${addon}/${filter}/${detail}
+      standard \n      mutate {\n          add_tag => [\"fail/cloudfoundry/doppler/jsonparsefailure_of_syslog_message\"]\n
+      \         remove_tag => [\"_jsonparsefailure\"]\n      }\n  \n  } else {\n  \n
+      \     date {\n          match => [ \"time\", \"ISO8601\" ]\n      }\n  \n      if
+      ('RTR' in [source_type]) {\n          grok {\n              match => {\n                  'msg'
+      => '%{HOSTNAME:hostname} - \\[(?<time>%{MONTHDAY}/%{MONTHNUM}/%{YEAR}:%{TIME}
+      %{INT})\\] \\\"%{WORD:verb} %{URIPATHPARAM:path} %{PROG:http_spec}\\\" %{BASE10NUM:status:int}
+      %{BASE10NUM:body_bytes_sent:int} \\\"%{GREEDYDATA:referer}\\\" \\\"%{GREEDYDATA:http_user_agent}\\\"
+      %{HOSTPORT} x_forwarded_for:\\\"%{GREEDYDATA:x_forwarded_for}\\\" vcap_request_id:%{NOTSPACE:vcap_request_id}
+      response_time:%{NUMBER:response_time:float} app_id:%{NOTSPACE}'\n                  overwrite
+      => [ \"time\" ]\n                  'tag_on_failure' => [ 'fail/cloudfoundry/doppler/RTR'
+      ]\n              }\n          }\n  \n          if !(\"fail/cloudfoundry/doppler/RTR\"
+      in [tags]) {\n              date {\n                  match => [ \"time\", \"dd/MM/y:HH:mm:ss
+      Z\" ]\n              }\n              if [x_forwarded_for] {\n                  mutate
+      {\n                      gsub => [\"x_forwarded_for\",\"[\\s\\\\\"]\",\"\"]
+      # remove quotes and whitespace\n                      split => [\"x_forwarded_for\",
+      \",\"] # format is client, proxy1, proxy2 ...\n                  }\n  \n                 mutate
+      {\n                    add_field => [\"remote_addr\", \"%{x_forwarded_for[0]}\"]\n
+      \                }\n                              \n                 geoip {\n
+      \                  source => \"remote_addr\"\n                 }\n              }\n
+      \ \n              mutate {\n                  remove => [ \"msg\" ]\n              }\n
+      \         }\n      }\n  \n      #Ensure that we always have an event_type, in
+      prep for adding metrics\n      if ![event_type]{\nmutate{\nadd_field
+      => [ \"event_type\", \"LogMessage\" ]\n          }\n      }\n  \n      mutate
+      {\n          remove_field => \"@type\"\n      }\n  \n      mutate {\n          add_field
+      => [ \"@type\", \"cloudfoundry_doppler\" ]\n          rename => [ \"syslog_message\",
+      \"@message\" ]\n          remove_field => \"time\"\n          remove_field =>
+      \"syslog_severity_code\"\n          remove_field => \"syslog_facility_code\"\n
+      \         remove_field => \"syslog_facility\"\n          remove_field => \"syslog_severity\"\n
+      \         remove_field => \"syslog_pri\"\n          remove_field => \"syslog_program\"\n
+      \         remove_field => \"syslog_pid\"\n      }\n  }\n  \n  \n      \n} else
+      if [@type] in [\"syslog\", \"relp\"] and [@source.host] == \"loggregator\" {\n
+      \ # Parse Cloud Foundry logs from loggregator (syslog)\n  # see https://github.com/cloudfoundry/loggregator/blob/master/src/loggregator/sinks/syslogwriter/syslog_writer.go#L156\n
+      \ \n  grok {\n      match => { \"syslog_procid\" => \"\\[(?<log_source>[^/\\]]+)(?:/(?<log_source_id>[^\\]]+))?\\]\"
+      }\n      tag_on_failure => [\n          \"fail/logsearch-for-cloudfoundry/loggregator/_grokparsefailure\"\n
+      \     ]\n  }\n  \n  if !(\"fail/logsearch-for-cloudfoundry/loggregator/_grokparsefailure\"
+      in [tags]) {\n      #If it looks like JSON, it must be JSON...\n      if [syslog_message]
+      =~ /^\\s*{\".*}\\s*$/ {\n          json {\n              source => \"syslog_message\"\n
+      \         }\n  \n          # @todo seems like some messages have @timestamp
+      in them? seems ci-specific\n          date {\n              match => [ \"@timestamp\",
+      \"ISO8601\" ]\n          }\n      } else {\n          mutate {\n              add_field
+      => [ \"message\", \"%{syslog_message}\" ]\n          } \n          if [message]
+      == \"-\" {\n              mutate {\n                  remove_field => \"message\"\n
+      \             } \n          }\n      }\n  \n      mutate {\n          rename
+      => [ \"syslog_program\", \"@source.app_id\" ]\n      }\n  \n      mutate {\n
+      \         add_tag => \"cloudfoundry_loggregator\"\n          remove_field =>
+      \"syslog_facility\"\n          remove_field => \"syslog_facility_code\"\n          remove_field
+      => \"syslog_message\"\n          remove_field => \"syslog_severity\"\n          remove_field
+      => \"syslog_severity_code\"\n          remove_field => \"syslog5424_ver\"\n
+      \         remove_field => \"syslog6587_msglen\"\n      }\n  }\n\n} else if [@type]
+      in [\"syslog\", \"relp\"] and [syslog_program] =~ /vcap\\..*/ {\n  # Parse Cloud
+      Foundry logs from syslog_aggregator\n  \n  grok {\n      match => { \"syslog_message\"
+      => \"(?:\\[job=%{NOTSPACE:@job.name}|-) +(?:index=%{NOTSPACE:@job.index}\\]|-)
+      %{GREEDYDATA:_message_json}\" }\n      tag_on_failure => [\n          \"_grokparsefailure-cf-vcap\"\n
+      \     ]\n  }\n  \n  if !(\"_grokparsefailure-cf-vcap\"in[tags]){\nkv
+      {\n          source => \"msgdata\"\n          field_split => \" \"\n          target
+      => \"msgdata\"\n      }\n  \n      json {\n          source => \"_message_json\"\n
+      \         remove_field => \"_message_json\"\n      }\n  \n      mutate {\n          rename
+      => [ \"syslog_program\", \"@shipper.name\" ]\n          replace => [ \"@job.host\",
+      \"%{@source.host}\" ]\n          gsub => [\n              \"@shipper.name\",
+      \"\\.\", \"_\",\n              \"@job.name\", \"\\.\", \"_\"\n            ]\n
+      \     }\n  \n      if [source] == \"NatsStreamForwarder\" {\n          json
+      {\n              source => \"[data][nats_message]\"\n              target =>
+      \"nats_message\"\n          }\n  \n          mutate {\n              remove_field
+      => \"[data][nats_message]\"\n          }\n      }\n  \n      mutate {\n          add_tag
+      => \"cloudfoundry_vcap\"\n          replace => [ \"@shipper.priority\", \"%{syslog_pri}\"
+      ]\n          replace => [ \"@shipper.name\", \"%{@shipper.name}_%{@type}\" ]\n
+      \         replace => [ \"@type\", \"%{@type}_cf\" ]\n      }\n  \n      mutate
+      {\n          remove_field => \"syslog_facility\"\n          remove_field =>
+      \"syslog_facility_code\"\n          remove_field => \"syslog_message\"\n          remove_field
+      => \"syslog_severity\"\n          remove_field => \"syslog_severity_code\"\n
+      \     }\n  }\n\n}\n"
+apply_spec:
+  properties:
+    ntp:
+    - 0.europe.pool.ntp.org
+    - 1.europe.pool.ntp.org
+    - 2.europe.pool.ntp.org
+    - 3.europe.pool.ntp.org
+networks:
+- name: warden
+  subnets:
+  - range: 10.244.10.0/30
+    reserved:
+    - 10.244.10.1
+    static:
+    - 10.244.10.2
+    cloud_properties:
+      name: random
+  - range: 10.244.10.4/30
+    reserved:
+    - 10.244.10.5
+    static:
+    - 10.244.10.6
+    cloud_properties:
+      name: random
+  - range: 10.244.10.8/30
+    reserved:
+    - 10.244.10.9
+    static:
+    - 10.244.10.10
+    cloud_properties:
+      name: random
+  - range: 10.244.10.12/30
+    reserved:
+    - 10.244.10.13
+    static:
+    - 10.244.10.14
+    cloud_properties:
+      name: random
+  - range: 10.244.10.16/30
+    reserved:
+    - 10.244.10.17
+    static:
+    - 10.244.10.18
+    cloud_properties:
+      name: random
+  - range: 10.244.10.20/30
+    reserved:
+    - 10.244.10.21
+    static:
+    - 10.244.10.22
+    cloud_properties:
+      name: random
+  - range: 10.244.10.24/30
+    reserved:
+    - 10.244.10.25
+    static:
+    - 10.244.10.26
+    cloud_properties:
+      name: random
+  - range: 10.244.10.28/30
+    reserved:
+    - 10.244.10.29
+    static:
+    - 10.244.10.30
+    cloud_properties:
+      name: random
+  - range: 10.244.10.32/30
+    reserved:
+    - 10.244.10.33
+    static:
+    - 10.244.10.34
+    cloud_properties:
+      name: random
+  - range: 10.244.10.36/30
+    reserved:
+    - 10.244.10.37
+    static:
+    - 10.244.10.38
+    cloud_properties:
+      name: random
+  - range: 10.244.10.40/30
+    reserved:
+    - 10.244.10.41
+    static:
+    - 10.244.10.42
+    cloud_properties:
+      name: random
+  - range: 10.244.10.44/30
+    reserved:
+    - 10.244.10.45
+    static:
+    - 10.244.10.46
+    cloud_properties:
+      name: random
+  - range: 10.244.10.48/30
+    reserved:
+    - 10.244.10.49
+    static:
+    - 10.244.10.50
+    cloud_properties:
+      name: random
+  - range: 10.244.10.52/30
+    reserved:
+    - 10.244.10.53
+    static:
+    - 10.244.10.54
+    cloud_properties:
+      name: random
+  - range: 10.244.10.56/30
+    reserved:
+    - 10.244.10.57
+    static:
+    - 10.244.10.58
+    cloud_properties:
+      name: random
+  - range: 10.244.10.60/30
+    reserved:
+    - 10.244.10.61
+    static:
+    - 10.244.10.62
+    cloud_properties:
+      name: random
+  - range: 10.244.10.64/30
+    reserved:
+    - 10.244.10.65
+    static:
+    - 10.244.10.66
+    cloud_properties:
+      name: random
+  - range: 10.244.10.68/30
+    reserved:
+    - 10.244.10.69
+    static:
+    - 10.244.10.70
+    cloud_properties:
+      name: random
+  - range: 10.244.10.72/30
+    reserved:
+    - 10.244.10.73
+    static:
+    - 10.244.10.74
+    cloud_properties:
+      name: random
+  - range: 10.244.10.76/30
+    reserved:
+    - 10.244.10.77
+    static:
+    - 10.244.10.78
+    cloud_properties:
+      name: random
+  - range: 10.244.10.80/30
+    reserved:
+    - 10.244.10.81
+    static:
+    - 10.244.10.82
+    cloud_properties:
+      name: random
+  - range: 10.244.10.84/30
+    reserved:
+    - 10.244.10.85
+    static:
+    - 10.244.10.86
+    cloud_properties:
+      name: random
+  - range: 10.244.10.88/30
+    reserved:
+    - 10.244.10.89
+    static:
+    - 10.244.10.90
+    cloud_properties:
+      name: random
+  - range: 10.244.10.92/30
+    reserved:
+    - 10.244.10.93
+    static:
+    - 10.244.10.94
+    cloud_properties:
+      name: random
+  - range: 10.244.10.96/30
+    reserved:
+    - 10.244.10.97
+    static:
+    - 10.244.10.98
+    cloud_properties:
+      name: random
+  - range: 10.244.10.100/30
+    reserved:
+    - 10.244.10.101
+    static:
+    - 10.244.10.102
+    cloud_properties:
+      name: random
+  - range: 10.244.10.104/30
+    reserved:
+    - 10.244.10.105
+    static:
+    - 10.244.10.106
+    cloud_properties:
+      name: random
+  - range: 10.244.10.108/30
+    reserved:
+    - 10.244.10.109
+    static:
+    - 10.244.10.110
+    cloud_properties:
+      name: random
+  - range: 10.244.10.112/30
+    reserved:
+    - 10.244.10.113
+    static:
+    - 10.244.10.114
+    cloud_properties:
+      name: random
+  - range: 10.244.10.116/30
+    reserved:
+    - 10.244.10.117
+    cloud_properties:
+      name: random
+  - range: 10.244.10.120/30
+    reserved:
+    - 10.244.10.121
+    cloud_properties:
+      name: random
+  - range: 10.244.10.124/30
+    reserved:
+    - 10.244.10.125
+    cloud_properties:
+      name: random
+  - range: 10.244.10.128/30
+    reserved:
+    - 10.244.10.129
+    cloud_properties:
+      name: random
+  - range: 10.244.10.132/30
+    reserved:
+    - 10.244.10.133
+    cloud_properties:
+      name: random
+  - range: 10.244.10.136/30
+    reserved:
+    - 10.244.10.137
+    cloud_properties:
+      name: random
+  - range: 10.244.10.140/30
+    reserved:
+    - 10.244.10.141
+    cloud_properties:
+      name: random
+  - range: 10.244.10.144/30
+    reserved:
+    - 10.244.10.145
+    cloud_properties:
+      name: random
+  - range: 10.244.10.148/30
+    reserved:
+    - 10.244.10.149
+    cloud_properties:
+      name: random
+  - range: 10.244.10.152/30
+    reserved:
+    - 10.244.10.153
+    cloud_properties:
+      name: random
+  - range: 10.244.10.156/30
+    reserved:
+    - 10.244.10.157
+    cloud_properties:
+      name: random
+  - range: 10.244.10.160/30
+    reserved:
+    - 10.244.10.161
+    cloud_properties:
+      name: random
+  - range: 10.244.10.164/30
+    reserved:
+    - 10.244.10.165
+    cloud_properties:
+      name: random
+  - range: 10.244.10.168/30
+    reserved:
+    - 10.244.10.169
+    cloud_properties:
+      name: random
+  - range: 10.244.10.172/30
+    reserved:
+    - 10.244.10.173
+    cloud_properties:
+      name: random
+  - range: 10.244.10.176/30
+    reserved:
+    - 10.244.10.177
+    cloud_properties:
+      name: random
+  - range: 10.244.10.180/30
+    reserved:
+    - 10.244.10.181
+    cloud_properties:
+      name: random
+  - range: 10.244.10.184/30
+    reserved:
+    - 10.244.10.185
+    cloud_properties:
+      name: random
+  - range: 10.244.10.188/30
+    reserved:
+    - 10.244.10.189
+    cloud_properties:
+      name: random
+  - range: 10.244.10.192/30
+    reserved:
+    - 10.244.10.193
+    cloud_properties:
+      name: random
+  - range: 10.244.10.196/30
+    reserved:
+    - 10.244.10.197
+    cloud_properties:
+      name: random
+  - range: 10.244.10.200/30
+    reserved:
+    - 10.244.10.201
+    cloud_properties:
+      name: random
+  - range: 10.244.10.204/30
+    reserved:
+    - 10.244.10.205
+    cloud_properties:
+      name: random
+  - range: 10.244.10.208/30
+    reserved:
+    - 10.244.10.209
+    cloud_properties:
+      name: random
+  - range: 10.244.10.212/30
+    reserved:
+    - 10.244.10.213
+    cloud_properties:
+      name: random
+  - range: 10.244.10.216/30
+    reserved:
+    - 10.244.10.217
+    cloud_properties:
+      name: random
+  - range: 10.244.10.220/30
+    reserved:
+    - 10.244.10.221
+    cloud_properties:
+      name: random
+  - range: 10.244.10.224/30
+    reserved:
+    - 10.244.10.225
+    cloud_properties:
+      name: random
+  - range: 10.244.10.228/30
+    reserved:
+    - 10.244.10.229
+    cloud_properties:
+      name: random
+  - range: 10.244.10.232/30
+    reserved:
+    - 10.244.10.233
+    cloud_properties:
+      name: random
+  - range: 10.244.10.236/30
+    reserved:
+    - 10.244.10.237
+    cloud_properties:
+      name: random
+  - range: 10.244.10.240/30
+    reserved:
+    - 10.244.10.241
+    cloud_properties:
+      name: random
+  - range: 10.244.10.244/30
+    reserved:
+    - 10.244.10.245
+    cloud_properties:
+      name: random

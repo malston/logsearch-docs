@@ -1,0 +1,118 @@
+---
+compilation:
+  cloud_properties:
+    name: random
+  network: logsearch_for_cloudfoundry1
+  reuse_compilation_vms: true
+  workers: 6
+director_uuid: c6f166bd-ddac-4f7d-9c57-d11c6ad5133b
+jobs:
+- instances: 1
+  name: ingestor_cloudfoundry
+  networks:
+  - name: logsearch_for_cloudfoundry1
+    static_ips:
+    - 10.244.200.2
+  persistent_disk: 0
+  properties: {}
+  release: logsearch-for-cloudfoundry
+  resource_pool: small_z1
+  templates:
+  - name: ingestor_cloudfoundry-firehose
+meta:
+  environment: logsearch-for-cloudfoundry-warden
+  stemcell:
+    name: bosh-warden-boshlite-ubuntu-trusty-go_agent
+    version: latest
+name: logsearch-for-cloudfoundry-warden
+networks:
+- name: logsearch_for_cloudfoundry1
+  subnets:
+  - cloud_properties:
+      name: random
+    range: 10.244.200.0/30
+    reserved:
+    - 10.244.200.1
+    static:
+    - 10.244.200.2
+  - cloud_properties:
+      name: random
+    range: 10.244.200.4/30
+    reserved:
+    - 10.244.200.5
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.8/30
+    reserved:
+    - 10.244.200.9
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.12/30
+    reserved:
+    - 10.244.200.13
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.16/30
+    reserved:
+    - 10.244.200.17
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.20/30
+    reserved:
+    - 10.244.200.21
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.24/30
+    reserved:
+    - 10.244.200.25
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.28/30
+    reserved:
+    - 10.244.200.29
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.32/30
+    reserved:
+    - 10.244.200.33
+    static: []
+  - cloud_properties:
+      name: random
+    range: 10.244.200.36/30
+    reserved:
+    - 10.244.200.37
+    static: []
+properties:
+  ingestor_cloudfoundry-firehose:
+    debug: true
+    doppler-endpoint: wss://doppler.10.244.0.34.xip.io
+    firehose-password: admin
+    firehose-user: admin
+    skip-ssl-validation: true
+    syslog-server: 10.244.10.6:514
+    uua-endpoint: https://uaa.10.244.0.34.xip.io/oauth/authorize
+releases:
+- name: logsearch-for-cloudfoundry
+  version: 0+dev.2
+resource_pools:
+- cloud_properties:
+    name: random
+  name: small_z1
+  network: logsearch_for_cloudfoundry1
+  size: 1https://logsearch-boshrelease.s3.amazonaws.com/boshrelease-logsearch-18%2Bdev.64.tgz
+  stemcell:
+    name: bosh-warden-boshlite-ubuntu-trusty-go_agent
+    version: 2776
+update:
+  canaries: 1
+  canary_watch_time: 1000-30000
+  max_in_flight: 50
+  serial: false
+  update_watch_time: 1000-30000
