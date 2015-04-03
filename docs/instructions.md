@@ -29,7 +29,7 @@ Make sure you have properly targeted your existing BOSH director. Then you can u
 
 Next you'll need to create your own deployment manifest. Right now the easiest
 way to do that is by using one of the [`examples`](./examples) as a starting
-point. You should only need to update the ‘director_uuid‘ property before you deploy.
+point. You should only need to update the `‘director_uuid‘` property before you deploy.
 
     $ bosh status --uuid        # copy the output from this command
     $ vi examples/bosh-lite.yml # update the 'director_uuid' property to match the output from the previous command
