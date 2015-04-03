@@ -28,7 +28,7 @@ Make sure you have properly targeted your existing BOSH director. Then you can u
     $ bosh upload release releases/logsearch-18.yml
 
 Next you'll need to create your own deployment manifest. Right now the easiest
-way to do that is by using one of the [`examples`](./examples) as a starting
+way to do that is by using one of the [`examples`](https://github.com/pivotalservices/logsearch-boshrelease/tree/multi-tenant-merge/examples) as a starting
 point. You should only need to update the `‘director_uuid‘` property before you deploy.
 
     $ bosh status --uuid        # copy the output from this command
