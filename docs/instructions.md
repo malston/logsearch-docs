@@ -94,5 +94,6 @@ Or, download the one from s3 which has been tested on cf-release v205 and logsea
 
 
 ## References
+- [Official Logsearch Docs](http://www.logsearch.io/docs/)
 - [How to Integrate Elasticsearch, Logstash and Kibana (ELK) with Cloud Foundry](http://cloudcredo.com/how-to-integrate-elasticsearch-logstash-and-kibana-elk-with-cloud-foundry/)
 - [Logsearch for Cloud Foundry](https://github.com/logsearch/logsearch-for-cloudfoundry)
