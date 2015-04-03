@@ -4,8 +4,21 @@ You can skip right to these [instructions](https://gist.github.com/malston/02171
 
 ## Getting Started
 
-First make sure you have properly targeted your existing BOSH director. Then
-you can upload the latest logsearch release...
+For example, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director.
+
+    $ mkdir -p ~/workspace
+    $ cd ~/workspace
+    $ git clone https://github.com/cloudfoundry/bosh-lite.git
+    $ cd ~/workspace/bosh-lite
+    $ vagrant box update
+    $ vagrant up --provider=virtualbox
+    $ export no_proxy=192.168.50.4,xip.io
+    $ bosh target 192.168.50.4 lite
+    $ bosh login
+    $ ./bin/add-route
+    $ ./bin/provision_cf    # install the latest cf-release
+
+Make sure you have properly targeted your existing BOSH director. Then you can upload the latest logsearch release. 
 
     $ mkdir -p ~/workspace/boshreleases/
     $ cd ~/workspace/boshreleases/
