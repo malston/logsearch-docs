@@ -4,7 +4,7 @@ You can skip right to these [instructions](https://gist.github.com/malston/02171
 
 ## Getting Started
 
-For example, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director.
+First, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director.
 
     $ mkdir -p ~/workspace
     $ cd ~/workspace
@@ -39,7 +39,7 @@ Deploy logsearch
 
     $ bosh -n deploy
 
-Logsearch should now be up and running, however Cloud Foundry doesn’t currently know anything about it. You’ll need to make a small change to your Cloud Foundry deployment manifest to instruct the CF components to forward their logs to the logsearch ingestor. Download the Cloud Foundry manifest and open it up in your favourite editor.
+Logsearch should now be up and running, however Cloud Foundry doesn’t currently know anything about it. You’ll need to make a small change to your Cloud Foundry deployment manifest to instruct the CF components to forward their logs to the logsearch ingestor. Download the Cloud Foundry manifest and open it up in your favorite editor.
 
     $ bosh download manifest cf-warden /tmp/cf-warden.yml
     $ vi /tmp/cf-warden.yml
