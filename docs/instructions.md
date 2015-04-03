@@ -1,6 +1,6 @@
 # Deploy Logsearch Boshrelease
     
-You can skip right to these [instructions](https://gist.github.com/malston/02171536c1010f2bd12c) if you already know how to deploy bosh releases.
+You can skip right to these [instructions](https://gist.github.com/malston/02171536c1010f2bd12c) if you already know how to deploy bosh a release.
 
 ## Getting Started
 
