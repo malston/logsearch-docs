@@ -8,7 +8,7 @@ If you deploying to an IaaS such as [vSphere](https://github.com/pivotalservices
 
     $ bosh target MICRO_BOSH_IP
 
-Othwerwise, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director. 
+Otherwise, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director. 
 
     $ mkdir -p ~/workspace
     $ cd ~/workspace
