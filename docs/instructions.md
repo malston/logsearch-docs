@@ -4,7 +4,11 @@ You can skip right to these [instructions](https://gist.github.com/malston/02171
 
 ## Getting Started
 
-First, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director.
+If you deploying to an IaaS such as [vSphere](https://github.com/pivotalservices/logsearch-boshrelease/blob/experiment-mt/examples/micro-logsearch-vsphere.yml), then you'll need to target your microbosh director.
+
+    $ bosh target MICRO_BOSH_IP
+
+Othwerwise, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and target the director. 
 
     $ mkdir -p ~/workspace
     $ cd ~/workspace
@@ -28,7 +32,7 @@ Make sure you have properly targeted your existing BOSH director. Then you can u
     $ bosh upload release releases/logsearch-18.yml
 
 Next you'll need to create your own deployment manifest. Right now the easiest
-way to do that is by using one of the [`examples`](https://github.com/pivotalservices/logsearch-boshrelease/tree/multi-tenant-merge/examples) as a starting
+way to do that is by using one of the [`examples`](https://github.com/pivotalservices/logsearch-boshrelease/blob/experiment-mt/examples) as a starting
 point. You should only need to update the `‘director_uuid‘` property before you deploy.
 
     $ bosh status --uuid        # copy the output from this command
