@@ -28,6 +28,15 @@ Make sure you have properly targeted your existing BOSH director. Then you can u
     $ cd ~/workspace/boshreleases/
     $ git clone https://github.com/logsearch/logsearch-boshrelease.git
     $ cd logsearch-boshrelease/
+    $ bosh create release --force
+    $ bosh upload release
+    
+If you want to upload the latest release
+
+    $ bosh upload release releases/logsearch-latest.yml
+
+If you want to upload a specific release
+
     $ git checkout v18
     $ bosh upload release releases/logsearch-18.yml
 
