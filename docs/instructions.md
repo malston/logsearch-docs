@@ -22,7 +22,7 @@ Otherwise, deploy [bosh-lite](https://github.com/cloudfoundry/bosh-lite) and tar
     $ ./bin/add-route
     $ ./bin/provision_cf    # install the latest cf-release
 
-Make sure you have properly targeted your existing BOSH director. Then you can upload the latest logsearch release. 
+Make sure you have properly targeted your existing BOSH director. Then you can create and upload a dev release. 
 
     $ mkdir -p ~/workspace/boshreleases/
     $ cd ~/workspace/boshreleases/
@@ -31,7 +31,7 @@ Make sure you have properly targeted your existing BOSH director. Then you can u
     $ bosh create release --force
     $ bosh upload release
     
-If you want to upload the latest release
+If you want to upload the latest production logsearch release, instead of running the last 2 lines above just run
 
     $ bosh upload release releases/logsearch-latest.yml
 
